@@ -376,20 +376,69 @@ export default function InspectionForm({ token }: { token: string }) {
           />
         </label>
 
-        <label className="field">
-          <span>
-            <input
-              style={{
-                width: "auto",
-                marginRight: 8,
-              }}
-              type="checkbox"
-              name="certified"
-              required
-            />
-            I certify this inspection is accurate.
-          </span>
-        </label>
+        {!lastNameOnly && type === "return" && (
+  <>
+    <label className="field">
+      <span>
+        <input
+          style={{
+            width: "auto",
+            marginRight: 8,
+          }}
+          type="checkbox"
+          name="trash_cleaned"
+          required
+        />
+        Trash cleaned out.
+      </span>
+    </label>
+
+    <label className="field">
+      <span>
+        <input
+          style={{
+            width: "auto",
+            marginRight: 8,
+          }}
+          type="checkbox"
+          name="vehicle_blown_out"
+          required
+        />
+        Vehicle blown out.
+      </span>
+    </label>
+
+    <label className="field">
+      <span>
+        <input
+          style={{
+            width: "auto",
+            marginRight: 8,
+          }}
+          type="checkbox"
+          name="walkaround_complete"
+          required
+        />
+        Walkaround inspection completed (checked for loose bolts, low tires, new leaks, etc.).
+      </span>
+    </label>
+  </>
+)}
+
+<label className="field">
+  <span>
+    <input
+      style={{
+        width: "auto",
+        marginRight: 8,
+      }}
+      type="checkbox"
+      name="certified"
+      required
+    />
+    I certify this inspection is accurate.
+  </span>
+</label>
 
         <button disabled={busy}>
           {busy
