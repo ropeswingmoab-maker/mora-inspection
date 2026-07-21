@@ -117,6 +117,15 @@ export default function InspectionForm({ token }: { token: string }) {
 
   return <section className="card">
     <h1>{vehicle.name}</h1><p>Unit #{vehicle.unit_number}</p>
+    {["R1", "R2", "R3", "R4"].includes(vehicle.unit_number) && (
+  <div className="my-6 rounded-xl border-2 border-red-500 bg-red-50 px-6 py-4">
+    <p className="text-lg font-bold text-red-700">
+      ⚠️ Don't forget! Complete the return checklist to release your
+      $1,000 security hold.
+    </p>
+  </div>
+)}
+
     <div className="choice">
       <button type="button" onClick={() => changeType("checkout")} className={type === "return" ? "secondary" : ""}>Checkout</button>
       <button type="button" onClick={() => changeType("return")} className={type === "checkout" ? "secondary" : ""}>Return</button>
