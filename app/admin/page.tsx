@@ -178,20 +178,40 @@ export default function AdminPage() {
     });
   }, [items]);
 
-  const dateGroups = useMemo(() => {
-    const groups = new Map<string, typeof rentalRows>();
+  const archiveGroups = useMemo(() => {
+    const years = new Map<string, Map<string, Map<string, typeof rentalRows>>>();
+
     for (const row of rentalRows) {
-      const current = groups.get(row.dateKey) || [];
-      current.push(row);
-      groups.set(row.dateKey, current);
+      const [year, month, day] = row.dateKey.split("-");
+
+      if (!years.has(year)) years.set(year, new Map());
+      const months = years.get(year)!;
+
+      if (!months.has(month)) months.set(month, new Map());
+      const days = months.get(month)!;
+
+      const currentRows = days.get(day) || [];
+      currentRows.push(row);
+      days.set(day, currentRows);
     }
-    return Array.from(groups.entries())
+
+    return Array.from(years.entries())
       .sort(([a], [b]) => b.localeCompare(a))
-      .map(([dateKey, rows]) => ({
-        dateKey,
-        rows: rows.sort((a, b) =>
-          (a.latest.vehicles?.name || "").localeCompare(b.latest.vehicles?.name || "")
-        ),
+      .map(([year, months]) => ({
+        year,
+        months: Array.from(months.entries())
+          .sort(([a], [b]) => b.localeCompare(a))
+          .map(([month, days]) => ({
+            month,
+            days: Array.from(days.entries())
+              .sort(([a], [b]) => b.localeCompare(a))
+              .map(([day, rows]) => ({
+                day,
+                rows: rows.sort((a, b) =>
+                  (a.latest.vehicles?.name || "").localeCompare(b.latest.vehicles?.name || "")
+                ),
+              })),
+          })),
       }));
   }, [rentalRows]);
 
@@ -300,41 +320,87 @@ export default function AdminPage() {
                 <h2>Inspection archive</h2>
               </div>
             </div>
-            {dateGroups.length === 0 ? (
+            {archiveGroups.length === 0 ? (
               <p className="empty-state">No inspections have been submitted yet.</p>
             ) : (
               <div className="inspection-archive">
-                {dateGroups.map((group) => {
-                  const [year, month, day] = group.dateKey.split("-");
-                  return (
-                    <section className="date-folder" key={group.dateKey}>
-                      <h3>{year} / {month} / {day}</h3>
-                      <div className="rental-list">
-                        {group.rows.map((row) => (
-                          <article className="rental-card" key={row.rentalId}>
-                            <div>
-                              <strong>{row.latest.vehicles?.name}</strong>
-                              <p>
-                                Checkout: {row.inspections.find((i) => i.inspection_type === "checkout")?.customer_name || "—"}
-                                {row.hasReturn && <> · Return: {row.inspections.find((i) => i.inspection_type === "return")?.customer_name || "—"}</>}
-                              </p>
-                              <small>{new Date(row.latest.submitted_at).toLocaleString()}</small>
-                            </div>
-                            <div className="status-stack">
-                              <span className={row.hasCheckout ? "badge done" : "badge"}>Checkout</span>
-                              <span className={row.hasReturn ? "badge done" : "badge overdue"}>
-                                {row.hasReturn ? "Returned" : "Return outstanding"}
-                              </span>
-                            </div>
-                            <button type="button" onClick={() => viewRental(row.rentalId)}>
-                              View inspection
-                            </button>
-                          </article>
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
+                {archiveGroups.map((yearGroup, yearIndex) => (
+                  <details className="date-folder" key={yearGroup.year} open={yearIndex === 0}>
+                    <summary style={{ cursor: "pointer", fontSize: 28, fontWeight: 800 }}>
+                      {yearGroup.year}
+                    </summary>
+
+                    <div style={{ marginTop: 16 }}>
+                      {yearGroup.months.map((monthGroup, monthIndex) => (
+                        <details
+                          key={`${yearGroup.year}-${monthGroup.month}`}
+                          open={yearIndex === 0 && monthIndex === 0}
+                          style={{ marginBottom: 14, padding: 16, border: "1px solid #cbdde9", borderRadius: 14, background: "#f8fcff" }}
+                        >
+                          <summary style={{ cursor: "pointer", fontSize: 22, fontWeight: 750 }}>
+                            {new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "America/Denver" }).format(
+                              new Date(Number(yearGroup.year), Number(monthGroup.month) - 1, 1)
+                            )} {yearGroup.year}
+                          </summary>
+
+                          <div style={{ marginTop: 14 }}>
+                            {monthGroup.days.map((dayGroup) => (
+                              <details
+                                key={`${yearGroup.year}-${monthGroup.month}-${dayGroup.day}`}
+                                style={{ marginBottom: 12, padding: 14, border: "1px solid #d8e5ee", borderRadius: 12, background: "#ffffff" }}
+                              >
+                               <summary style={{ cursor: "pointer", fontSize: 19, fontWeight: 700 }}>
+  {(() => {
+    const rentalCount = dayGroup.rows.filter((row) =>
+      ["R1", "R2", "R3", "R4"].includes(
+        row.latest.vehicles?.unit_number ?? ""
+      )
+    ).length;
+
+    const employeeRigCount = dayGroup.rows.length - rentalCount;
+
+    return (
+      <>
+        {monthGroup.month}/{dayGroup.day}/{yearGroup.year} ·{" "}
+        {rentalCount} {rentalCount === 1 ? "Rental" : "Rentals"} ·{" "}
+        {employeeRigCount}{" "}
+        {employeeRigCount === 1 ? "Employee Rig" : "Employee Rigs"}
+      </>
+    );
+  })()}
+</summary>
+
+                                <div className="rental-list" style={{ marginTop: 14 }}>
+                                  {dayGroup.rows.map((row) => (
+                                    <article className="rental-card" key={row.rentalId}>
+                                      <div>
+                                        <strong>{row.latest.vehicles?.name}</strong>
+                                        <p>
+                                          Checkout: {row.inspections.find((i) => i.inspection_type === "checkout")?.customer_name || "—"}
+                                          {row.hasReturn && <> · Return: {row.inspections.find((i) => i.inspection_type === "return")?.customer_name || "—"}</>}
+                                        </p>
+                                        <small>{new Date(row.latest.submitted_at).toLocaleString()}</small>
+                                      </div>
+                                      <div className="status-stack">
+                                        <span className={row.hasCheckout ? "badge done" : "badge"}>Checkout</span>
+                                        <span className={row.hasReturn ? "badge done" : "badge overdue"}>
+                                          {row.hasReturn ? "Returned" : "Return outstanding"}
+                                        </span>
+                                      </div>
+                                      <button type="button" onClick={() => viewRental(row.rentalId)}>
+                                        View inspection
+                                      </button>
+                                    </article>
+                                  ))}
+                                </div>
+                              </details>
+                            ))}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  </details>
+                ))}
               </div>
             )}
           </section>
